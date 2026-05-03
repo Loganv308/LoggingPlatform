@@ -6,10 +6,10 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - PGHOST=${PGHOST}
-      - PGPORT=${PGPORT}
-      - PGDATABASE=${PGDATABASE}
-      - PGUSER=${PGUSER}
+      - PGHOST=db
+      - PGPORT=5432
+      - PGDATABASE=logstream
+      - PGUSER=logstream
       - PGPASSWORD=${POSTGRES_PASSWORD}
       - PORT=3000
     depends_on:
@@ -23,8 +23,8 @@ services:
     container_name: logstream-db
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=${PGHOST}
-      - POSTGRES_USER=${PGUSER}
+      - POSTGRES_DB=logstream
+      - POSTGRES_USER=logstream
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data

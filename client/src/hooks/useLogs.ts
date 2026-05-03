@@ -23,13 +23,20 @@ export function useLogs(filters: ApiFilters): UseLogsReturn {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [liveTail, setLiveTail] = useState(false)
+
+  // Holds the historical logs loaded on mount / filter change
+  const historicalLogsRef = useRef<LogEntry[]>([])
+  // Holds only the new logs that arrived via WebSocket
   const liveLogsRef = useRef<LogEntry[]>([])
 
-  // Fetch services list once
+  // Fetch services list periodically so new services appear without a refresh
   useEffect(() => {
-    fetchServices()
-      .then(setServices)
-      .catch(() => setServices([]))
+    const load = (): void => {
+      fetchServices().then(setServices).catch(() => {})
+    }
+    load()
+    const id = setInterval(load, 15_000)
+    return () => clearInterval(id)
   }, [])
 
   // Fetch stats periodically
@@ -46,8 +53,9 @@ export function useLogs(filters: ApiFilters): UseLogsReturn {
     setError(null)
     fetchLogs(filters)
       .then((data) => {
-        setLogs(data)
+        historicalLogsRef.current = data
         liveLogsRef.current = []
+        setLogs(data)
       })
       .catch((e: unknown) => {
         setError(e instanceof Error ? e.message : 'Unknown error')
@@ -60,10 +68,11 @@ export function useLogs(filters: ApiFilters): UseLogsReturn {
     if (!liveTail) loadLogs()
   }, [loadLogs, liveTail])
 
-  // Live tail: prepend incoming logs, applying client-side filters
+  // Live tail: prepend new logs on top of existing historical logs
   useLiveTail({
     enabled: liveTail,
     onLog: useCallback((log: LogEntry) => {
+      // Apply client-side filters
       if (filters.service && log.service !== filters.service) return
       if (filters.level && log.level !== filters.level) return
       if (filters.search) {
@@ -73,8 +82,10 @@ export function useLogs(filters: ApiFilters): UseLogsReturn {
           !log.service?.toLowerCase().includes(q)
         ) return
       }
+
+      // Prepend to live buffer, cap it, then combine with historical
       liveLogsRef.current = [log, ...liveLogsRef.current].slice(0, MAX_LIVE_LOGS)
-      setLogs([...liveLogsRef.current])
+      setLogs([...liveLogsRef.current, ...historicalLogsRef.current])
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters.service, filters.level, filters.search]),
   })
