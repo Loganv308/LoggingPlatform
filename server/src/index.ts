@@ -12,23 +12,24 @@ import logsRouter   from './routes/logs.js'
 const app    = express()
 const server = http.createServer(app)
 const PORT   = Number(process.env.PORT ?? 3000)
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Middleware
 app.use(cors())
 app.use(express.json())
 
-// Routes
+// API Routes
 app.use('/api/ingest', ingestRouter)
 app.use('/api/logs',   logsRouter)
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }))
 
-app.use(express.static(path.join(__dirname, '../../client/dist')))
+// Serve built frontend (production / Docker)
+const frontendDist = path.join(__dirname, '../../client/dist')
+app.use(express.static(frontendDist))
 app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, '../../client/dist/index.html'))
+  res.sendFile(path.join(frontendDist, 'index.html'))
 })
 
 // Boot
