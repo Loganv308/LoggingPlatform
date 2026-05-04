@@ -12,6 +12,7 @@ services:
       - PGUSER=logstream
       - PGPASSWORD=${POSTGRES_PASSWORD}
       - PORT=3000
+      - FRONTEND_DIST=/app/client/dist
     depends_on:
       db:
         condition: service_healthy
