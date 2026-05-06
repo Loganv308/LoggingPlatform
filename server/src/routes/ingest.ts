@@ -12,6 +12,28 @@ interface IngestBody {
   metadata?: Record<string, unknown>
 }
 
+// POST /api/ingest  — single log entry
+router.post('/', async (req: Request, res: Response): Promise<void> => {
+  const { level, service, message, ts, metadata } = req.body as IngestBody
+
+  if (!level || !service || !message) {
+    res.status(400).json({ error: 'level, service, and message are required' })
+    return
+  }
+
+  const result = await pool.query<{ id: string; ts: string }>(
+    `INSERT INTO logs (ts, level, service, message, metadata)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, ts`,
+    [ts ?? new Date().toISOString(), level.toUpperCase(), service, message, metadata ?? null]
+  )
+
+  const row = result.rows[0]
+  const logEntry = { id: row.id, ts: row.ts, level: level.toUpperCase(), service, message, metadata }
+  broadcast(logEntry)
+  res.status(201).json(logEntry)
+})
+
 // POST /api/ingest/batch  — array of log entries
 router.post('/batch', async (req: Request, res: Response): Promise<void> => {
   const entries = req.body as IngestBody[]
